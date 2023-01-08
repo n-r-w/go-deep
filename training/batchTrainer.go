@@ -1,6 +1,8 @@
 package training
 
 import (
+	"bytes"
+	"encoding/gob"
 	"sync"
 	"time"
 
@@ -10,11 +12,15 @@ import (
 // BatchTrainer implements parallelized batch training
 type BatchTrainer struct {
 	*internalb
-	verbosity   int
-	batchSize   int
-	parallelism int
-	solver      Solver
-	printer     *StatsPrinter
+	statInterval time.Duration
+	verbosity    int
+	batchSize    int
+	parallelism  int
+	solver       Solver
+	printer      *StatsPrinter
+
+	mu      sync.RWMutex
+	weights []byte
 }
 
 type internalb struct {
@@ -57,7 +63,17 @@ func NewBatchTrainer(solver Solver, verbosity, batchSize, parallelism int) *Batc
 		batchSize:   iparam(batchSize, 1),
 		parallelism: iparam(parallelism, 1),
 		printer:     NewStatsPrinter(),
+		mu:          sync.RWMutex{},
+		weights:     []byte{},
 	}
+}
+
+func (t *BatchTrainer) WeightsToBytes() []byte {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	b := make([]byte, len(t.weights))
+	copy(b, t.weights)
+	return b
 }
 
 // Train trains n
@@ -88,6 +104,7 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 	t.solver.Init(n.NumWeights())
 
 	ts := time.Now()
+	lastStat := time.Now()
 	for it := 1; it <= iterations; it++ {
 		train.Shuffle()
 		batches := train.SplitSize(t.batchSize)
@@ -120,9 +137,24 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 			t.update(n, it)
 		}
 
-		if t.verbosity > 0 && it%t.verbosity == 0 && len(validation) > 0 {
-			t.printer.PrintProgress(n, validation, time.Since(ts), it)
+		if len(validation) > 0 {
+			if t.statInterval > 0 {
+				if time.Since(lastStat) > t.statInterval {
+					t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
+					lastStat = time.Now()
+				}
+			} else if t.verbosity > 0 && it%t.verbosity == 0 && len(validation) > 0 {
+				t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
+			}
 		}
+
+		buf := bytes.Buffer{}
+		enc := gob.NewEncoder(&buf)
+		t.mu.Lock()
+		w := n.Weights()
+		enc.Encode(&w)
+		t.weights = buf.Bytes()
+		t.mu.Unlock()
 	}
 }
 

@@ -59,7 +59,7 @@ func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, ite
 			t.learn(n, examples[j], i)
 		}
 		if t.verbosity > 0 && i%t.verbosity == 0 && len(validation) > 0 {
-			t.printer.PrintProgress(n, validation, time.Since(ts), i)
+			t.printer.PrintProgress(n, validation, time.Since(ts), i, iterations)
 		}
 	}
 }
