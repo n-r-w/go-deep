@@ -8,7 +8,7 @@ import (
 
 // Trainer is a neural network trainer
 type Trainer interface {
-	Train(n *deep.Neural, examples, validation Examples, iterations int)
+	Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration) (loss float64)
 }
 
 // OnlineTrainer is a basic, online network trainer
@@ -43,7 +43,7 @@ func newTraining(layers []*deep.Layer) *internal {
 }
 
 // Train trains n
-func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int) {
+func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration) (loss float64) {
 	t.internal = newTraining(n.Layers)
 
 	train := make(Examples, len(examples))
@@ -53,15 +53,29 @@ func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, ite
 	t.solver.Init(n.NumWeights())
 
 	ts := time.Now()
+	loss = -1
 	for i := 1; i <= iterations; i++ {
 		examples.Shuffle()
 		for j := 0; j < len(examples); j++ {
 			t.learn(n, examples[j], i)
 		}
+
+		cl := 0.0
 		if t.verbosity > 0 && i%t.verbosity == 0 && len(validation) > 0 {
-			t.printer.PrintProgress(n, validation, time.Since(ts), i, iterations)
+			cl = t.printer.PrintProgress(n, validation, time.Since(ts), i, iterations)
+		} else {
+			cl = crossValidate(n, validation)
+		}
+		if loss < 0 || cl < loss {
+			loss = cl
+		}
+
+		if time.Since(ts) >= maxDuration {
+			break
 		}
 	}
+
+	return loss
 }
 
 func (t *OnlineTrainer) learn(n *deep.Neural, e Example, it int) {

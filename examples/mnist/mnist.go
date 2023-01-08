@@ -60,7 +60,7 @@ func main() {
 
 	fmt.Printf("training: %d, val: %d, test: %d\n", len(train), len(test), len(test))
 
-	trainer.Train(neural, train, test, 500)
+	trainer.Train(neural, train, test, 500, time.Hour)
 }
 
 func load(path string) (training.Examples, error) {

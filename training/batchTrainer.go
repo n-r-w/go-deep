@@ -78,7 +78,7 @@ func (t *BatchTrainer) WeightsToBytes() []byte {
 }
 
 // Train trains n
-func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int) {
+func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration) (loss float64) {
 	t.internalb = newBatchTraining(n.Layers, t.parallelism)
 
 	train := make(Examples, len(examples))
@@ -106,6 +106,7 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 
 	ts := time.Now()
 	lastStat := time.Now()
+	loss = -1
 	for it := 1; it <= iterations; it++ {
 		train.Shuffle()
 		batches := train.SplitSize(t.batchSize)
@@ -138,15 +139,23 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 			t.update(n, it)
 		}
 
+		cl := -1.0
 		if len(validation) > 0 {
 			if t.statInterval > 0 {
 				if time.Since(lastStat) > t.statInterval {
-					t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
+					cl = t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
 					lastStat = time.Now()
 				}
 			} else if t.verbosity > 0 && it%t.verbosity == 0 && len(validation) > 0 {
-				t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
+				cl = t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
 			}
+		}
+		if cl < 0 {
+			cl = crossValidate(n, validation)
+		}
+
+		if loss < 0 || cl < loss {
+			loss = cl
 		}
 
 		buf := bytes.Buffer{}
@@ -156,7 +165,13 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 		enc.Encode(&w)
 		t.weights = buf.Bytes()
 		t.mu.Unlock()
+
+		if time.Since(ts) >= maxDuration {
+			break
+		}
 	}
+
+	return loss
 }
 
 func (t *BatchTrainer) calculateDeltas(n *deep.Neural, ideal []float64, wid int) {
