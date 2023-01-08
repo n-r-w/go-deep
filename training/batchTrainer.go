@@ -56,15 +56,16 @@ func newBatchTraining(layers []*deep.Layer, parallelism int) *internalb {
 }
 
 // NewBatchTrainer returns a BatchTrainer
-func NewBatchTrainer(solver Solver, verbosity, batchSize, parallelism int) *BatchTrainer {
+func NewBatchTrainer(solver Solver, verbosity, batchSize, parallelism int, statInterval time.Duration) *BatchTrainer {
 	return &BatchTrainer{
-		solver:      solver,
-		verbosity:   verbosity,
-		batchSize:   iparam(batchSize, 1),
-		parallelism: iparam(parallelism, 1),
-		printer:     NewStatsPrinter(),
-		mu:          sync.RWMutex{},
-		weights:     []byte{},
+		statInterval: statInterval,
+		verbosity:    verbosity,
+		batchSize:    iparam(batchSize, 1),
+		parallelism:  iparam(parallelism, 1),
+		solver:       solver,
+		printer:      NewStatsPrinter(),
+		mu:           sync.RWMutex{},
+		weights:      []byte{},
 	}
 }
 
