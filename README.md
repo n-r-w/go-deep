@@ -1,3 +1,4 @@
+Forked and changed according personal needs
 # go-deep
 
 [![GoDoc](https://godoc.org/github.com/patrikeh/go-deep?status.svg)](https://godoc.org/github.com/patrikeh/go-deep)
