@@ -44,7 +44,7 @@ func main() {
 	//trainer := training.NewTrainer(training.NewAdam(0.1, 0, 0, 0), 50)
 	trainer := training.NewBatchTrainer(training.NewAdam(0.1, 0, 0, 0), 50, len(data)/2, 12, 0)
 	//data, heldout := data.Split(0.5)
-	trainer.Train(neural, data, data, 5000, time.Hour)
+	trainer.Train(neural, data, data, 5000, time.Hour, nil)
 }
 
 func load(path string) (training.Examples, error) {

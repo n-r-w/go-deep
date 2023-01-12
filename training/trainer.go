@@ -8,7 +8,7 @@ import (
 
 // Trainer is a neural network trainer
 type Trainer interface {
-	Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration) (loss float64)
+	Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan [][][]float64) (loss float64)
 }
 
 // OnlineTrainer is a basic, online network trainer
@@ -43,7 +43,7 @@ func newTraining(layers []*deep.Layer) *internal {
 }
 
 // Train trains n
-func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration) (loss float64) {
+func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan [][][]float64) (loss float64) {
 	t.internal = newTraining(n.Layers)
 
 	train := make(Examples, len(examples))
@@ -54,6 +54,11 @@ func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, ite
 
 	ts := time.Now()
 	loss = -1
+
+	if len(validation) == 0 {
+		validation = examples
+	}
+
 	for i := 1; i <= iterations; i++ {
 		examples.Shuffle()
 		for j := 0; j < len(examples); j++ {
@@ -72,6 +77,10 @@ func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, ite
 
 		if time.Since(ts) >= maxDuration {
 			break
+		}
+
+		if weightsFeedback != nil {
+			weightsFeedback <- n.Weights()
 		}
 	}
 

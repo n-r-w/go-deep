@@ -36,7 +36,7 @@ func Test_BoundedRegression(t *testing.T) {
 		})
 
 		trainer := NewTrainer(NewSGD(0.25, 0.5, 0, false), 0)
-		trainer.Train(n, data, nil, 5000, time.Hour)
+		trainer.Train(n, data, nil, 5000, time.Hour, nil)
 
 		tests := []float64{0.0, 0.1, 0.25, 0.5, 0.75, 0.9}
 		for _, x := range tests {
@@ -62,7 +62,7 @@ func Test_RegressionLinearOuts(t *testing.T) {
 	})
 
 	trainer := NewBatchTrainer(NewAdam(0.01, 0, 0, 0), 0, 25, 2, 0)
-	trainer.Train(n, squares, nil, 25000, time.Hour)
+	trainer.Train(n, squares, nil, 25000, time.Hour, nil)
 
 	for i := 0; i < 100; i++ {
 		x := float64(rand.Intn(99) + 1)
@@ -90,7 +90,7 @@ func Test_Training(t *testing.T) {
 	})
 
 	trainer := NewTrainer(NewSGD(0.5, 0.1, 0, false), 0)
-	trainer.Train(n, data, nil, 1000, time.Hour)
+	trainer.Train(n, data, nil, 1000, time.Hour, nil)
 
 	v := n.Predict([]float64{0})
 	assert.InEpsilon(t, 1, 1+v[0], 0.1)
@@ -123,7 +123,7 @@ func Test_Prediction(t *testing.T) {
 	})
 	trainer := NewTrainer(NewSGD(0.5, 0.1, 0, false), 0)
 
-	trainer.Train(n, data, nil, 5000, time.Hour)
+	trainer.Train(n, data, nil, 5000, time.Hour, nil)
 
 	for _, d := range data {
 		assert.InEpsilon(t, n.Predict(d.Input)[0]+1, d.Response[0]+1, 0.1)
@@ -141,7 +141,7 @@ func Test_CrossVal(t *testing.T) {
 	})
 
 	trainer := NewTrainer(NewSGD(0.5, 0.1, 0, false), 0)
-	trainer.Train(n, data, data, 1000, time.Hour)
+	trainer.Train(n, data, data, 1000, time.Hour, nil)
 
 	for _, d := range data {
 		assert.InEpsilon(t, n.Predict(d.Input)[0]+1, d.Response[0]+1, 0.1)
@@ -174,7 +174,7 @@ func Test_MultiClass(t *testing.T) {
 	})
 
 	trainer := NewTrainer(NewSGD(0.01, 0.1, 0, false), 0)
-	trainer.Train(n, data, data, 1000, time.Hour)
+	trainer.Train(n, data, data, 1000, time.Hour, nil)
 
 	for _, d := range data {
 		est := n.Predict(d.Input)
@@ -208,7 +208,7 @@ func Test_or(t *testing.T) {
 
 	trainer := NewTrainer(NewSGD(0.5, 0, 0, false), 10)
 
-	trainer.Train(n, permutations, permutations, 25, time.Hour)
+	trainer.Train(n, permutations, permutations, 25, time.Hour, nil)
 
 	for _, perm := range permutations {
 		assert.Equal(t, deep.Round(n.Predict(perm.Input)[0]), perm.Response[0])
@@ -233,7 +233,7 @@ func Test_xor(t *testing.T) {
 	}
 
 	trainer := NewTrainer(NewSGD(1.0, 0.1, 1e-6, false), 50)
-	trainer.Train(n, permutations, permutations, 500, time.Hour)
+	trainer.Train(n, permutations, permutations, 500, time.Hour, nil)
 
 	for _, perm := range permutations {
 		assert.InEpsilon(t, n.Predict(perm.Input)[0]+1, perm.Response[0]+1, 0.2)

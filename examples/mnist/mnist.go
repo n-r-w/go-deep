@@ -16,10 +16,10 @@ import (
 )
 
 /*
-	mnist classifier
-	mnist is a set of hand-written digits 0-9
-	the dataset in a sane format (as used here) can be found at:
-	https://pjreddie.com/projects/mnist-in-csv/
+mnist classifier
+mnist is a set of hand-written digits 0-9
+the dataset in a sane format (as used here) can be found at:
+https://pjreddie.com/projects/mnist-in-csv/
 */
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -60,7 +60,7 @@ func main() {
 
 	fmt.Printf("training: %d, val: %d, test: %d\n", len(train), len(test), len(test))
 
-	trainer.Train(neural, train, test, 500, time.Hour)
+	trainer.Train(neural, train, test, 500, time.Hour, nil)
 }
 
 func load(path string) (training.Examples, error) {

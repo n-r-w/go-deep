@@ -1,8 +1,6 @@
 package training
 
 import (
-	"bytes"
-	"encoding/gob"
 	"sync"
 	"time"
 
@@ -18,9 +16,6 @@ type BatchTrainer struct {
 	parallelism  int
 	solver       Solver
 	printer      *StatsPrinter
-
-	mu      sync.RWMutex
-	weights []byte
 }
 
 type internalb struct {
@@ -64,22 +59,16 @@ func NewBatchTrainer(solver Solver, verbosity, batchSize, parallelism int, statI
 		parallelism:  iparam(parallelism, 1),
 		solver:       solver,
 		printer:      NewStatsPrinter(),
-		mu:           sync.RWMutex{},
-		weights:      []byte{},
 	}
 }
 
-func (t *BatchTrainer) WeightsToBytes() []byte {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	b := make([]byte, len(t.weights))
-	copy(b, t.weights)
-	return b
-}
-
 // Train trains n
-func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration) (loss float64) {
+func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan [][][]float64) (loss float64) {
 	t.internalb = newBatchTraining(n.Layers, t.parallelism)
+
+	if len(validation) == 0 {
+		validation = examples
+	}
 
 	train := make(Examples, len(examples))
 	copy(train, examples)
@@ -123,6 +112,10 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 			}
 			wg.Wait()
 
+			if weightsFeedback != nil {
+				weightsFeedback <- n.Weights()
+			}
+
 			for _, wPD := range t.partialDeltas {
 				for i, iPD := range wPD {
 					iAD := t.accumulatedDeltas[i]
@@ -140,16 +133,15 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 		}
 
 		cl := -1.0
-		if len(validation) > 0 {
-			if t.statInterval > 0 {
-				if time.Since(lastStat) > t.statInterval {
-					cl = t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
-					lastStat = time.Now()
-				}
-			} else if t.verbosity > 0 && it%t.verbosity == 0 && len(validation) > 0 {
+		if t.statInterval > 0 {
+			if time.Since(lastStat) > t.statInterval {
 				cl = t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
+				lastStat = time.Now()
 			}
+		} else if t.verbosity > 0 && it%t.verbosity == 0 && len(validation) > 0 {
+			cl = t.printer.PrintProgress(n, validation, time.Since(ts), it, iterations)
 		}
+
 		if cl < 0 {
 			cl = crossValidate(n, validation)
 		}
@@ -157,14 +149,6 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 		if loss < 0 || cl < loss {
 			loss = cl
 		}
-
-		buf := bytes.Buffer{}
-		enc := gob.NewEncoder(&buf)
-		t.mu.Lock()
-		w := n.Weights()
-		enc.Encode(&w)
-		t.weights = buf.Bytes()
-		t.mu.Unlock()
 
 		if time.Since(ts) >= maxDuration {
 			break
