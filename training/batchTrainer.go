@@ -114,10 +114,6 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 			}
 			wg.Wait()
 
-			if weightsFeedback != nil {
-				weightsFeedback <- n.Weights()
-			}
-
 			for _, wPD := range t.partialDeltas {
 				for i, iPD := range wPD {
 					iAD := t.accumulatedDeltas[i]
@@ -150,6 +146,10 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 
 		if loss < 0 || cl < loss {
 			loss = cl
+
+			if weightsFeedback != nil {
+				weightsFeedback <- n.Weights()
+			}
 		}
 
 		if time.Since(ts) >= maxDuration {
