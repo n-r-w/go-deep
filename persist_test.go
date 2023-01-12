@@ -19,7 +19,7 @@ func Test_RestoreFromDump(t *testing.T) {
 	})
 
 	dump := n.Dump()
-	new := FromDump(dump)
+	new, _ := FromDump(dump)
 
 	for i, biases := range n.Biases {
 		for j, bias := range biases {
