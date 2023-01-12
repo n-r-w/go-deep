@@ -2,6 +2,7 @@ package deep
 
 import (
 	"encoding/json"
+	"errors"
 )
 
 // Dump is a neural network dump
@@ -10,15 +11,31 @@ type Dump struct {
 	Weights [][][]float64
 }
 
+var errInvalidWeights = errors.New("invalid weights")
+
 // ApplyWeights sets the weights from a three-dimensional slice
-func (n *Neural) ApplyWeights(weights [][][]float64) {
+func (n *Neural) ApplyWeights(weights [][][]float64) error {
+	if len(n.Layers) != len(weights) {
+		return errInvalidWeights
+	}
+
 	for i, l := range n.Layers {
+		if len(n.Layers[i].Neurons) != len(weights[i]) {
+			return errInvalidWeights
+		}
+
 		for j := range l.Neurons {
+			if len(n.Layers[i].Neurons[j].In) != len(weights[i][j]) {
+				return errInvalidWeights
+			}
+
 			for k := range l.Neurons[j].In {
 				n.Layers[i].Neurons[j].In[k].Weight = weights[i][j][k]
 			}
 		}
 	}
+
+	return nil
 }
 
 // Weights returns all weights in sequence
@@ -45,11 +62,13 @@ func (n Neural) Dump() *Dump {
 }
 
 // FromDump restores a Neural from a dump
-func FromDump(dump *Dump) *Neural {
+func FromDump(dump *Dump) (*Neural, error) {
 	n := NewNeural(dump.Config)
-	n.ApplyWeights(dump.Weights)
+	if err := n.ApplyWeights(dump.Weights); err != nil {
+		return nil, err
+	}
 
-	return n
+	return n, nil
 }
 
 // Marshal marshals to JSON from network
@@ -63,5 +82,5 @@ func Unmarshal(bytes []byte) (*Neural, error) {
 	if err := json.Unmarshal(bytes, &dump); err != nil {
 		return nil, err
 	}
-	return FromDump(&dump), nil
+	return FromDump(&dump)
 }

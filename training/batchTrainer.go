@@ -103,7 +103,9 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 		for _, b := range batches {
 			currentWeights := n.Weights()
 			for _, n := range nets {
-				n.ApplyWeights(currentWeights)
+				if err := n.ApplyWeights(currentWeights); err != nil {
+					panic("internal error")
+				}
 			}
 
 			wg.Add(len(b))
