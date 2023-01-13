@@ -63,7 +63,7 @@ func NewBatchTrainer(solver Solver, verbosity, batchSize, parallelism int, statI
 }
 
 // Train trains n
-func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan [][][]float64) (loss float64) {
+func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan Feedback) (loss float64) {
 	t.internalb = newBatchTraining(n.Layers, t.parallelism)
 
 	if len(validation) == 0 {
@@ -148,7 +148,10 @@ func (t *BatchTrainer) Train(n *deep.Neural, examples, validation Examples, iter
 			loss = cl
 
 			if weightsFeedback != nil {
-				weightsFeedback <- n.Weights()
+				weightsFeedback <- Feedback{
+					Weights: n.Weights(),
+					Loss:    loss,
+				}
 			}
 		}
 

@@ -6,9 +6,14 @@ import (
 	deep "github.com/patrikeh/go-deep"
 )
 
+type Feedback struct {
+	Weights [][][]float64
+	Loss    float64
+}
+
 // Trainer is a neural network trainer
 type Trainer interface {
-	Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan [][][]float64) (loss float64)
+	Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan Feedback) (loss float64)
 }
 
 // OnlineTrainer is a basic, online network trainer
@@ -43,7 +48,7 @@ func newTraining(layers []*deep.Layer) *internal {
 }
 
 // Train trains n
-func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan [][][]float64) (loss float64) {
+func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, iterations int, maxDuration time.Duration, weightsFeedback chan Feedback) (loss float64) {
 	t.internal = newTraining(n.Layers)
 
 	train := make(Examples, len(examples))
@@ -73,15 +78,19 @@ func (t *OnlineTrainer) Train(n *deep.Neural, examples, validation Examples, ite
 		}
 		if loss < 0 || cl < loss {
 			loss = cl
+
+			if weightsFeedback != nil {
+				weightsFeedback <- Feedback{
+					Weights: n.Weights(),
+					Loss:    loss,
+				}
+			}
 		}
 
 		if time.Since(ts) >= maxDuration {
 			break
 		}
 
-		if weightsFeedback != nil {
-			weightsFeedback <- n.Weights()
-		}
 	}
 
 	return loss
